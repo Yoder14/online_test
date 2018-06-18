@@ -15,6 +15,7 @@ from django.core.exceptions import (
     MultipleObjectsReturned, ObjectDoesNotExist
 )
 from taggit.models import Tag
+from django.views.decorators.csrf import csrf_exempt
 import json
 import six
 from textwrap import dedent
@@ -45,7 +46,31 @@ from .file_utils import extract_files, is_csv
 from .send_emails import (send_user_mail,
                           generate_activation_key, send_bulk_mail)
 from .decorators import email_verified, has_profile
+from rest_framework.renderers import JSONRenderer
+from rest_framework.parsers import JSONParser
 
+
+#@login_required  after oauth implementation
+@csrf_exempt
+def course_accepted(request):
+    """
+    List all code snippets, or create a new snippet.
+    """
+    d={'workshop_name':'one_day Workshop','instructor':'Mr. INstructor','coordinator':'Mr.Coordinator'}
+
+    if request.method == 'GET':
+        print(" This is a GET Request your course has been created ")
+        return JsonResponse(d)
+
+    elif request.method == 'POST':
+        #model function
+        #Course.create_course()
+
+
+        print(" This is a POST Request your course has been created ")
+        received_data=request.POST.dict()
+        print(received_data)
+        return JsonResponse(received_data)
 
 def my_redirect(url):
     """An overridden redirect to deal with URL_ROOT-ing. See settings.py

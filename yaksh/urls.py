@@ -200,5 +200,8 @@ urlpatterns = [
     url(r'^manage/preview_questionpaper/(?P<questionpaper_id>\d+)/$',
         views.preview_questionpaper, name="preview_questionpaper"),
     url(r'^manage/get_user_status/(?P<course_id>\d+)/(?P<student_id>\d+)/$',
-        views.get_user_data, name="get_user_data")
+        views.get_user_data, name="get_user_data"),
+
+
+    url(r'^course_accepted/$', views.course_accepted)
 ]

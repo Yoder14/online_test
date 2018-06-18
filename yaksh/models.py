@@ -623,7 +623,16 @@ class Course(models.Model):
 
     objects = CourseManager()
 
-    def _create_duplicate_instance(self, creator, course_name=None):
+    # cretaes a course when the instructor triggers accept @ booking master
+    def create_course(self):
+        pass
+
+
+
+
+
+
+    def create_duplicate_instance(self, creator, course_name=None):
         new_course = self
         new_course.id = None
         new_course.name = course_name if course_name else self.name
