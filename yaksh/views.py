@@ -63,13 +63,17 @@ def course_accepted(request):
         return JsonResponse(d)
 
     elif request.method == 'POST':
-        #model function
-        #Course.create_course()
-
-
         print(" This is a POST Request your course has been created ")
         received_data=request.POST.dict()
+
+        user=User.objects.get(email="teacher@mail.com")
+        #creating new course for workshop
         print(received_data)
+
+        print(received_data.keys())
+        new_course=Course(name=received_data.get('workshop_title'),creator=user,code="ISCPY14")
+        new_course.save()
+        print("course created")
         return JsonResponse(received_data)
 
 def my_redirect(url):

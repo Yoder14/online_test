@@ -622,16 +622,6 @@ class Course(models.Model):
     grading_system = models.ForeignKey(GradingSystem, null=True, blank=True)
 
     objects = CourseManager()
-
-    # cretaes a course when the instructor triggers accept @ booking master
-    def create_course(self):
-        pass
-
-
-
-
-
-
     def create_duplicate_instance(self, creator, course_name=None):
         new_course = self
         new_course.id = None
