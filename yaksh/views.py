@@ -64,17 +64,64 @@ def course_accepted(request):
 
     elif request.method == 'POST':
         print(" This is a POST Request your course has been created ")
-        received_data=request.POST.dict()
+        workshop_data=request.POST.dict()
+        print("data received:\n",workshop_data)
+        print("\n",workshop_data.keys())
 
-        user=User.objects.get(email="teacher@mail.com")
+        #check if email id is present
+        #if email is present fetch the user object
+        try:
+            user = User.objects.get(email=workshop_data.get('instructor_mail'))
+        except User.DoesNotExist:
+            user = None
+            print("User not found with the email given")
+            #else create the user and profile for that email with a random password and send mail
+            # or give a popup to the user to enter a new password for yaksh
+
+            #fetch the username,pwd,email from instructor
+
+            # new_user=User.objects.create_user(u_name, email, pwd)
+            new_user=User.objects.create_user(workshop_data.get('instructor_username'),workshop_data.get('instructor_mail'), "password")
+            print("user created")
+            #fetch instructor first name, lastname
+            new_user.first_name =workshop_data.get('instructor_first_name')
+            new_user.last_name =workshop_data.get('instructor_last_name')
+            print("user firstname and lastname are set")
+            new_user.save()
+            print("user creation done in database")
+            #user created
+
+
+
+        #profile creation:
+            new_profile = Profile(user=new_user)
+            print("user profile created")
+            #fetch roll_number,institute,department,position,timezone
+            #is_email_verified=true
+            new_profile.is_email_verified = True
+            print("is_email_verified is set True")
+            #profile
+            new_profile.activation_key = generate_activation_key(
+                new_user.username)
+            new_profile.key_expiry_time = timezone.now() + timezone.timedelta(
+                minutes=20)
+            new_profile.save()
+            print("Profile data saved in database")
+        #profile created
+            user=new_user
+            print("logged in as new_user")
+
+        #adding to the moderator group
+            group = Group.objects.get(name="moderator")
+            if not is_moderator(user):
+                user.groups.add(group)        
+        
+
         #creating new course for workshop
-        print(received_data)
-
-        print(received_data.keys())
-        new_course=Course(name=received_data.get('workshop_title'),creator=user,code="ISCPY14")
+        new_course=Course(name=workshop_data.get('workshop_title'),creator=user,code="ISCPY14")
         new_course.save()
         print("course created")
-        return JsonResponse(received_data)
+        return JsonResponse(workshop_data)
 
 def my_redirect(url):
     """An overridden redirect to deal with URL_ROOT-ing. See settings.py
@@ -133,7 +180,9 @@ def user_register(request):
     Create a user and corresponding profile and store roll_number also."""
 
     user = request.user
+    print(user)
     if user.is_authenticated():
+        print("user is is_authenticated")
         return my_redirect("/exam/quizzes/")
     context = {}
     if request.method == "POST":
