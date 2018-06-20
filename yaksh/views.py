@@ -1496,7 +1496,7 @@ def show_all_questions(request):
                     ques = Question()
                     files, extract_path = extract_files(questions_file)
                     context['message'] = ques.read_yaml(extract_path, user,
-                                                        files)
+                                                        files)[0]
                 else:
                     message = "Please Upload a ZIP file"
                     context['message'] = message

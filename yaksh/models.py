@@ -697,7 +697,7 @@ class Course(models.Model):
 
     def create_demo(self, user):
         course = Course.objects.filter(creator=user,
-                                       name="Yaksh Demo course").exists()
+                                       name="Yaksh Demo course 100").exists()
         if not course:
             course = Course.objects.create(name="Yaksh Demo course",
                                            enrollment="open",
@@ -1012,6 +1012,7 @@ class Question(models.Model):
         try:
             questions = ruamel.yaml.safe_load_all(questions_list)
             msg = "Questions Uploaded Successfully"
+            added_questions_list=[]
             for question in questions:
                 question['user'] = user
                 file_names = question.pop('files') \
@@ -1019,6 +1020,7 @@ class Question(models.Model):
                 tags = question.pop('tags') if 'tags' in question else None
                 test_cases = question.pop('testcase')
                 que, result = Question.objects.get_or_create(**question)
+                added_questions_list+=que
                 if file_names:
                     que._add_files_to_db(file_names, file_path)
                 if tags:
@@ -1038,7 +1040,7 @@ class Question(models.Model):
                         msg = "Unable to parse test case data"
         except Exception as exc_msg:
             msg = "Error Parsing Yaml: {0}".format(exc_msg)
-        return msg
+        return msg,added_questions_list
 
     def get_test_cases(self, **kwargs):
         tc_list = []
@@ -1129,20 +1131,23 @@ class Question(models.Model):
         shutil.rmtree(tmp_file_path)
 
     def read_yaml(self, file_path, user, files=None):
+        print("In read_Yaml")
         yaml_file = os.path.join(file_path, "questions_dump.yaml")
         msg = ""
         if os.path.exists(yaml_file):
             with open(yaml_file, 'r') as q_file:
                 questions_list = q_file.read()
-                msg = self.load_questions(questions_list, user,
+                msg, added_questions_list = self.load_questions(questions_list, user,
                                           file_path, files
                                           )
+
         else:
+            print("Please upload zip file with questions_dump.yaml in it.")
             msg = "Please upload zip file with questions_dump.yaml in it."
 
         if files:
             delete_files(files, file_path)
-        return msg
+        return msg,added_questions_list
 
     def create_demo_questions(self, user):
         zip_file_path = os.path.join(
