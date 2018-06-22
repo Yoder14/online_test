@@ -1011,8 +1011,10 @@ class Question(models.Model):
                        files_list=None):
         try:
             questions = ruamel.yaml.safe_load_all(questions_list)
+            print("safely loaded all")
             msg = "Questions Uploaded Successfully"
             added_questions_list=[]
+            # print("added questions list :\n",added_questions_list)
             for question in questions:
                 question['user'] = user
                 file_names = question.pop('files') \
@@ -1020,7 +1022,8 @@ class Question(models.Model):
                 tags = question.pop('tags') if 'tags' in question else None
                 test_cases = question.pop('testcase')
                 que, result = Question.objects.get_or_create(**question)
-                added_questions_list+=que
+                print(que)
+                added_questions_list.append(que)
                 if file_names:
                     que._add_files_to_db(file_names, file_path)
                 if tags:
@@ -1040,6 +1043,7 @@ class Question(models.Model):
                         msg = "Unable to parse test case data"
         except Exception as exc_msg:
             msg = "Error Parsing Yaml: {0}".format(exc_msg)
+        print("que list", added_questions_list)
         return msg,added_questions_list
 
     def get_test_cases(self, **kwargs):
@@ -1133,10 +1137,13 @@ class Question(models.Model):
     def read_yaml(self, file_path, user, files=None):
         print("In read_Yaml")
         yaml_file = os.path.join(file_path, "questions_dump.yaml")
+        print("yaml_file",yaml_file)
         msg = ""
         if os.path.exists(yaml_file):
             with open(yaml_file, 'r') as q_file:
+                print("yaml file in read mode")
                 questions_list = q_file.read()
+                # print("question_list:\n",questions_list)
                 msg, added_questions_list = self.load_questions(questions_list, user,
                                           file_path, files
                                           )

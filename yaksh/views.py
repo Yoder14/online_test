@@ -20,6 +20,7 @@ import json
 import six
 from textwrap import dedent
 import zipfile
+from datetime import datetime, date,timedelta
 from markdown import Markdown
 try:
     from StringIO import StringIO as string_io
@@ -48,80 +49,95 @@ from .send_emails import (send_user_mail,
 from .decorators import email_verified, has_profile
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
-
-
 #@login_required  after oauth implementation
 @csrf_exempt
 def course_accepted(request):
     """
-    List all code snippets, or create a new snippet.
+        authenticates the user from workshop booking
     """
-    d={'workshop_name':'one_day Workshop','instructor':'Mr. INstructor','coordinator':'Mr.Coordinator'}
-
     if request.method == 'GET':
         print(" This is a GET Request your course has been created ")
-        return JsonResponse(d)
-
+        return Http404
     elif request.method == 'POST':
-        print(" This is a POST Request your course has been created ")
         workshop_data=request.POST.dict()
-        print("data received:\n",workshop_data)
-        print("\n",workshop_data.keys())
+        print(workshop_data)
+        if(workshop_data.get('position')=='instructor'):
+            try:
+                user = User.objects.get(email=workshop_data.get('instructor_mail'))
+            except User.DoesNotExist:
+                user = None
+                print("User not found with the email given")
+                new_user=User.objects.create_user(workshop_data.get('instructor_username'),workshop_data.get('instructor_mail'), "password")
+                print("user created")
+                new_user.first_name =workshop_data.get('instructor_first_name')
+                new_user.last_name =workshop_data.get('instructor_last_name')
+                print("user firstname and lastname are set")
+                new_user.save()
+                print("user creation done in database")
+                new_profile = Profile(user=new_user)
+                print("user profile created")
+                new_profile.is_email_verified = True
+                print("is_email_verified is set True")
+                new_profile.activation_key = generate_activation_key(
+                    new_user.username)
+                new_profile.key_expiry_time = timezone.now() + timezone.timedelta(
+                    minutes=20)
+                new_profile.save()
+                print("Profile data saved in database")
+                user=new_user
+                print("logged in as new_user")
+                group = Group.objects.get(name="moderator")
+                if not is_moderator(user):
+                    user.groups.add(group)        
+            # auto_course(user=user,course_name=workshop_data.get('workshop_title'),code="ISCPY14",days=3)
+            
+            
+            auto_course(user=user,course_name=workshop_data.get('workshop_title'),code="ISCPY14",days=1)
+            print("course created")
+            return HttpResponse(200)
+        return Http404        
+def auto_course(user,course_name,code,days):
+    course = Course.objects.create(name=str(course_name+" "+code+" "+str(days)+" day"),enrollment="open",creator=user)
+    #quizzes are created
+    questions_set=['quiz_1','quiz_2','quiz_3','practice_basics','practice_control_flow','practice_data_structures','quiz_4','practice_functions','practice_files_and_exceptions','quiz_5']
+    que = Question()
+    learning_module = LearningModule.objects.create(
+        name="auto module", description="auto module", creator=user,
+        html_data="auto module")
+    for index,quiz in enumerate(questions_set, 0):
+        if(days==1 and index>2):
+            break
+        quiz=Quiz.objects.create(
+            start_date_time=timezone.now(),
+            end_date_time=timezone.now() + timedelta(176590),
+            duration=30, active=True,attempts_allowed=-1,
+            time_between_attempts=0,description='Yaksh '+str(quiz).replace("_"," "),
+            pass_criteria=0,creator=user,
+            instructions="<b>This is a Quiz.</b>")
+        print(type(quiz))
+        zip_file_path = os.path.join(
+            FIXTURES_DIR_PATH, questions_set[index]+'.zip'
+            )
+        files, extract_path = extract_files(zip_file_path)
+        print("files : \n",files)
+        print("extract_path : \n",extract_path)
+        print("before read yaml")
+        print(type(que))
+        added_questions = que.read_yaml(extract_path, user, files)[1]
+        question_paper = QuestionPaper.objects.create(quiz=quiz,shuffle_questions=False)    
+        print("added_questions: ", added_questions)
+        q_order= [str(que.id) for que in added_questions]
+        question_paper.fixed_question_order = ",".join(q_order)
+        question_paper.save()
+        question_paper.fixed_questions.add(*added_questions)
+        question_paper.update_total_marks()
+        question_paper.save()
+        quiz_unit =  LearningUnit.objects.create(order=index, type="quiz", quiz=quiz)
+        learning_module.learning_unit.add(quiz_unit)        
+    course.learning_module.add(learning_module)
+    course.save()
 
-        #check if email id is present
-        #if email is present fetch the user object
-        try:
-            user = User.objects.get(email=workshop_data.get('instructor_mail'))
-        except User.DoesNotExist:
-            user = None
-            print("User not found with the email given")
-            #else create the user and profile for that email with a random password and send mail
-            # or give a popup to the user to enter a new password for yaksh
 
-            #fetch the username,pwd,email from instructor
-
-            # new_user=User.objects.create_user(u_name, email, pwd)
-            new_user=User.objects.create_user(workshop_data.get('instructor_username'),workshop_data.get('instructor_mail'), "password")
-            print("user created")
-            #fetch instructor first name, lastname
-            new_user.first_name =workshop_data.get('instructor_first_name')
-            new_user.last_name =workshop_data.get('instructor_last_name')
-            print("user firstname and lastname are set")
-            new_user.save()
-            print("user creation done in database")
-            #user created
-
-
-
-        #profile creation:
-            new_profile = Profile(user=new_user)
-            print("user profile created")
-            #fetch roll_number,institute,department,position,timezone
-            #is_email_verified=true
-            new_profile.is_email_verified = True
-            print("is_email_verified is set True")
-            #profile
-            new_profile.activation_key = generate_activation_key(
-                new_user.username)
-            new_profile.key_expiry_time = timezone.now() + timezone.timedelta(
-                minutes=20)
-            new_profile.save()
-            print("Profile data saved in database")
-        #profile created
-            user=new_user
-            print("logged in as new_user")
-
-        #adding to the moderator group
-            group = Group.objects.get(name="moderator")
-            if not is_moderator(user):
-                user.groups.add(group)        
-        
-
-        #creating new course for workshop
-        new_course=Course(name=workshop_data.get('workshop_title'),creator=user,code="ISCPY14")
-        new_course.save()
-        print("course created")
-        return JsonResponse(workshop_data)
 
 def my_redirect(url):
     """An overridden redirect to deal with URL_ROOT-ing. See settings.py
