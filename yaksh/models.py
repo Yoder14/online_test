@@ -320,7 +320,33 @@ class Quiz(models.Model):
     is_trial = models.BooleanField(default=False)
 
     instructions = models.TextField('Instructions for Students',
-                                    default=None, blank=True, null=True)
+                                    default=dedent("""\
+            <p>
+            This examination system has been developed with the intention of
+            making you learn programming and be assessed in an interactive and
+            fun manner.You will be presented with a series of programming
+            questions and problems that you will answer online and get
+            immediate feedback for.
+            </p><p>Here are some important instructions and rules that you
+            should understand carefully.</p>
+            <ul><li>For any programming questions, you can submit solutions as
+            many times as you want without a penalty. You may skip questions
+            and solve them later.</li><li> You <strong>may</strong>
+            use your computer's Python/IPython shell or an editor to solve the
+            problem and cut/paste the solution to the web interface.
+            </li><li> <strong>You are not allowed to use any internet resources
+            i.e. no google etc.</strong>
+            </li>
+            <li> Do not copy or share the questions or answers with anyone
+            until the exam is complete <strong>for everyone</strong>.
+            </li><li> <strong>All</strong> your attempts at the questions are
+            logged. Do not try to outsmart and break the testing system.
+            If you do, we know who you are and we will expel you from the
+            course. You have been warned.
+            </li></ul>
+            <p>We hope you enjoy taking this exam !!!</p>
+        """), 
+                                    blank=True, null=True)
 
     view_answerpaper = models.BooleanField('Allow student to view their answer\
                                             paper', default=False)
@@ -1011,10 +1037,8 @@ class Question(models.Model):
                        files_list=None):
         try:
             questions = ruamel.yaml.safe_load_all(questions_list)
-            print("safely loaded all")
             msg = "Questions Uploaded Successfully"
             added_questions_list=[]
-            # print("added questions list :\n",added_questions_list)
             for question in questions:
                 question['user'] = user
                 file_names = question.pop('files') \
@@ -1022,7 +1046,6 @@ class Question(models.Model):
                 tags = question.pop('tags') if 'tags' in question else None
                 test_cases = question.pop('testcase')
                 que, result = Question.objects.get_or_create(**question)
-                print(que)
                 added_questions_list.append(que)
                 if file_names:
                     que._add_files_to_db(file_names, file_path)
@@ -1043,7 +1066,6 @@ class Question(models.Model):
                         msg = "Unable to parse test case data"
         except Exception as exc_msg:
             msg = "Error Parsing Yaml: {0}".format(exc_msg)
-        print("que list", added_questions_list)
         return msg,added_questions_list
 
     def get_test_cases(self, **kwargs):
@@ -1135,21 +1157,16 @@ class Question(models.Model):
         shutil.rmtree(tmp_file_path)
 
     def read_yaml(self, file_path, user, files=None):
-        print("In read_Yaml")
         yaml_file = os.path.join(file_path, "questions_dump.yaml")
-        print("yaml_file",yaml_file)
         msg = ""
         if os.path.exists(yaml_file):
             with open(yaml_file, 'r') as q_file:
-                print("yaml file in read mode")
                 questions_list = q_file.read()
-                # print("question_list:\n",questions_list)
                 msg, added_questions_list = self.load_questions(questions_list, user,
                                           file_path, files
                                           )
 
         else:
-            print("Please upload zip file with questions_dump.yaml in it.")
             msg = "Please upload zip file with questions_dump.yaml in it."
 
         if files:

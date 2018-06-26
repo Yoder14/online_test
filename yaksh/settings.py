@@ -17,6 +17,7 @@ SERVER_HOST_NAME = config('SERVER_HOST_NAME', default='http://localhost')
 
 # Timeout for the code to run in seconds.  This is an integer!
 SERVER_TIMEOUT = config('SERVER_TIMEOUT', default=4, cast=int)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # The root of the URL, for example you might be in the situation where you
 # are not hosted as host.org/exam/  but as host.org/foo/exam/ for whatever

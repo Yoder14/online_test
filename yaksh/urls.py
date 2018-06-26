@@ -203,5 +203,5 @@ urlpatterns = [
         views.get_user_data, name="get_user_data"),
 
 
-    url(r'^course_accepted/$', views.course_accepted)
+    url(r'^workshop_course/$', views.workshop_course)
 ]

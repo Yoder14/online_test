@@ -20,7 +20,7 @@ import json
 import six
 from textwrap import dedent
 import zipfile
-from datetime import datetime, date,timedelta
+from datetime import datetime, date, timedelta
 from markdown import Markdown
 try:
     from StringIO import StringIO as string_io
@@ -44,99 +44,109 @@ from yaksh.forms import (
 from yaksh.settings import SERVER_POOL_PORT, SERVER_HOST_NAME
 from .settings import URL_ROOT
 from .file_utils import extract_files, is_csv
-from .send_emails import (send_user_mail,
+from .send_emails import (send_user_mail, send_workshop_course_mail,
                           generate_activation_key, send_bulk_mail)
 from .decorators import email_verified, has_profile
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
-#@login_required  after oauth implementation
+# @login_required  after oauth implementation
+
+
 @csrf_exempt
-def course_accepted(request):
-    """
-        authenticates the user from workshop booking
-    """
-    if request.method == 'GET':
-        print(" This is a GET Request your course has been created ")
-        return Http404
-    elif request.method == 'POST':
-        workshop_data=request.POST.dict()
-        print(workshop_data)
-        if(workshop_data.get('position')=='instructor'):
+def workshop_course(request):
+    """ authenticates the user from workshop booking """
+    if request.method == 'POST':
+        # fetch data from post request
+        workshop_data = request.POST.dict()
+        workshop_title = workshop_data['workshop_title']
+        days = int(workshop_title[workshop_title.index("day") - 1])
+        workshop_title = workshop_title[:workshop_title.index(',') - 5]
+        if(workshop_data['position'] == 'instructor' and days != 0):
+            user_created = False
             try:
-                user = User.objects.get(email=workshop_data.get('instructor_mail'))
+                user = User.objects.get(email=workshop_data['instructor_mail'])
             except User.DoesNotExist:
+                user_created = True
                 user = None
                 print("User not found with the email given")
-                new_user=User.objects.create_user(workshop_data.get('instructor_username'),workshop_data.get('instructor_mail'), "password")
-                print("user created")
-                new_user.first_name =workshop_data.get('instructor_first_name')
-                new_user.last_name =workshop_data.get('instructor_last_name')
-                print("user firstname and lastname are set")
-                new_user.save()
-                print("user creation done in database")
-                new_profile = Profile(user=new_user)
-                print("user profile created")
-                new_profile.is_email_verified = True
-                print("is_email_verified is set True")
-                new_profile.activation_key = generate_activation_key(
-                    new_user.username)
-                new_profile.key_expiry_time = timezone.now() + timezone.timedelta(
-                    minutes=20)
-                new_profile.save()
-                print("Profile data saved in database")
-                user=new_user
-                print("logged in as new_user")
-                group = Group.objects.get(name="moderator")
+                new_user = User.objects.create_user(
+                                                    username=workshop_data['instructor_username'],
+                                                    email=workshop_data['instructor_mail'],
+                                                    password="password",
+                                                    first_name=workshop_data['instructor_first_name'],
+                                                    last_name=workshop_data['instructor_last_name'],
+                                                )
+                new_profile = Profile(user=new_user, is_email_verified=True)
+                user = new_user
                 if not is_moderator(user):
-                    user.groups.add(group)        
-            # auto_course(user=user,course_name=workshop_data.get('workshop_title'),code="ISCPY14",days=3)
-            
-            
-            auto_course(user=user,course_name=workshop_data.get('workshop_title'),code="ISCPY14",days=1)
+                    group = Group.objects.get(name="moderator")
+                    user.groups.add(group)
+            date_obj = datetime.strptime(workshop_data['workshop_date'], "%Y-%m-%d %H:%M:%S")
+            workshop_title_code = abbreviation(workshop_title)
+            college_code = abbreviation(workshop_data['coordinator_Institute'])
+            create_course(
+                            workshop_data, days, user=user, new_user=user_created,
+                            course_name="{0} {1} - ({2})".format(workshop_title, college_code, date_obj.strftime("%d-%b-%Y")),
+                            course_code="{0}{1}".format(college_code, date_obj.strftime("%d%m%Y"))
+                        )
             print("course created")
             return HttpResponse(200)
-        return Http404        
-def auto_course(user,course_name,code,days):
-    course = Course.objects.create(name=str(course_name+" "+code+" "+str(days)+" day"),enrollment="open",creator=user)
-    #quizzes are created
-    questions_set=['quiz_1','quiz_2','quiz_3','practice_basics','practice_control_flow','practice_data_structures','quiz_4','practice_functions','practice_files_and_exceptions','quiz_5']
-    que = Question()
-    learning_module = LearningModule.objects.create(
-        name="auto module", description="auto module", creator=user,
-        html_data="auto module")
-    for index,quiz in enumerate(questions_set, 0):
-        if(days==1 and index>2):
-            break
-        quiz=Quiz.objects.create(
-            start_date_time=timezone.now(),
-            end_date_time=timezone.now() + timedelta(176590),
-            duration=30, active=True,attempts_allowed=-1,
-            time_between_attempts=0,description='Yaksh '+str(quiz).replace("_"," "),
-            pass_criteria=0,creator=user,
-            instructions="<b>This is a Quiz.</b>")
-        print(type(quiz))
-        zip_file_path = os.path.join(
-            FIXTURES_DIR_PATH, questions_set[index]+'.zip'
-            )
-        files, extract_path = extract_files(zip_file_path)
-        print("files : \n",files)
-        print("extract_path : \n",extract_path)
-        print("before read yaml")
-        print(type(que))
-        added_questions = que.read_yaml(extract_path, user, files)[1]
-        question_paper = QuestionPaper.objects.create(quiz=quiz,shuffle_questions=False)    
-        print("added_questions: ", added_questions)
-        q_order= [str(que.id) for que in added_questions]
-        question_paper.fixed_question_order = ",".join(q_order)
-        question_paper.save()
-        question_paper.fixed_questions.add(*added_questions)
-        question_paper.update_total_marks()
-        question_paper.save()
-        quiz_unit =  LearningUnit.objects.create(order=index, type="quiz", quiz=quiz)
-        learning_module.learning_unit.add(quiz_unit)        
-    course.learning_module.add(learning_module)
-    course.save()
+        return Http404("Unauthorised user")
+    return Http404("Unauthorised request")
 
+
+def abbreviation(input):
+    """ returns the shorthand notation of a string """
+    code = []
+    for i in input.upper().split():
+            code.append(i[0])
+    return "".join(code)
+
+
+def create_course(workshop_data, days, user, new_user, course_name, course_code):
+    """ creates course for an user """
+    course = Course.objects.create(name=course_name, code=course_code, enrollment="open", creator=user)
+    # quizzes are created
+
+    question_set = {
+                    1: ['quiz_1', 'quiz_2', 'quiz_3'],
+                    2: ['practice_basics', 'practice_control_flow', 'practice_data_structures'],
+                    3: ['quiz_4', 'practice_functions', 'practice_files_and_exceptions', 'quiz_5']
+                }
+    que = Question()
+    for day in range(days):
+        print("day ", day)
+        learning_module = LearningModule.objects.create(
+                                                        name="Day {0}".format(str(day + 1)), description="Day {0}".format(str(day + 1)),
+                                                        creator=user, html_data="module"
+                                                    )
+        for index, quiz_name in enumerate(question_set[day + 1], 0):
+            quiz = Quiz.objects.create(
+                                        start_date_time=timezone.now(),
+                                        end_date_time=timezone.now() + timedelta(days=days),
+                                        duration=30, active=True, attempts_allowed=-1, time_between_attempts=0,
+                                        description="{0}_{1}".format(str(quiz_name).replace("_", " ").capitalize(), str(course_code)),
+                                        pass_criteria=0, creator=user)
+            zip_file_path = os.path.join(
+                                            FIXTURES_DIR_PATH, quiz_name + '.zip'
+                                        )
+            files, extract_path = extract_files(zip_file_path)
+            added_questions = que.read_yaml(extract_path, user, files)[1]
+            question_paper = QuestionPaper.objects.create(quiz=quiz, shuffle_questions=False)
+            q_order = [str(que.id) for que in added_questions]
+            question_paper.fixed_question_order = ",".join(q_order)
+            question_paper.save()
+            question_paper.fixed_questions.add(*added_questions)
+            question_paper.update_total_marks()
+            question_paper.save()
+            quiz_unit = LearningUnit.objects.create(order=index, type="quiz", quiz=quiz)
+            learning_module.learning_unit.add(quiz_unit)
+        course.learning_module.add(learning_module)
+    print("course created")
+    send_workshop_course_mail(workshop_data['instructor_mail'], workshop_data['coordinator_mail'],
+                                 course_name, course_code, new_user,
+                                instructor_username=workshop_data['instructor_username'],
+                                instructor_password="password")
 
 
 def my_redirect(url):

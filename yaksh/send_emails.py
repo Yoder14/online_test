@@ -88,3 +88,47 @@ def send_bulk_mail(subject, email_body, recipients, attachments):
                 Please contact {1}.""".format(exc_msg, settings.REPLY_EMAIL)
 
     return message
+
+
+def send_workshop_course_mail(instructor_mail, coordinator_mail, course_name,
+                        course_code, new_user=False, instructor_username = None, instructor_password = None):
+    """ Send mail to instructor and coordinator regarding course creation 
+        This function should get six args i.e
+        instructor_mail, coordinator_mail, instructor_username, instructor_password, course_name, course_code,
+    """
+    try:
+        to = instructor_mail
+        subject = 'Yaksh Course Creation'
+        message = dedent("""\
+                We received a request to create a course for you on yaksh portal.
+                Your request has been processed and a course {0} is created with the course code :{1}
+                You can now login to the yaksh portal and verify the course design.
+            """.format(course_name, course_code)
+            )
+        if new_user:
+            message=dedent("""\
+                                Your account has been created in the yaksh site,
+                                with the following credentials\n USERNAME : {0}\n and PASSWORD : {1}\n\n
+                                you can now login to the site and change your password.
+                            """.format(instructor_username,instructor_password)
+                        ).join(message.splitlines())
+        send_mail(subject, message, settings.SENDER_EMAIL, [to])
+
+        to = coordinator_mail
+        message = dedent("""\
+                We received a request to create a course for your workshop on yaksh portal.
+                Ask your students to signup/login to the yaksh site and enroll to the course : {0} 
+                by searching with the course code : {1}
+            """.format(course_name, course_code)
+            )
+        send_mail(subject, message, settings.SENDER_EMAIL, [to])
+        msg = "An email has been sent to both instructor and coordinator."
+        success = True
+
+    except Exception as exc_msg:
+        msg = """Error: {0}. Please check your email address.\
+                If email address is correct then
+                Please contact {1}.""".format(exc_msg, settings.REPLY_EMAIL)
+        success = False
+
+    return success, msg
