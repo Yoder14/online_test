@@ -15,6 +15,7 @@ urlpatterns = [
     url(r'^', include('social.apps.django_app.urls', namespace='social')),
     url(r'^grades/', include('grades.urls', namespace='grades',
                              app_name='grades')),
-    url(r'^api-auth/', include('rest_framework.urls'))
+    url(r'^api-auth/', include('rest_framework.urls')),
+    url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

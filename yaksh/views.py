@@ -49,10 +49,13 @@ from .send_emails import (send_user_mail, send_workshop_course_mail,
 from .decorators import email_verified, has_profile
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
+from oauth2_provider.decorators import protected_resource
+
 # @login_required  after oauth implementation
 
 
 @csrf_exempt
+@protected_resource()
 def workshop_course(request):
     """ authenticates the user from workshop booking """
     if request.method == 'POST':
@@ -89,7 +92,6 @@ def workshop_course(request):
                             course_name="{0} {1} - ({2})".format(workshop_title, college_code, date_obj.strftime("%d-%b-%Y")),
                             course_code="{0}{1}".format(college_code, date_obj.strftime("%d%m%Y"))
                         )
-            print("course created")
             return HttpResponse(200)
         return Http404("Unauthorised user")
     return Http404("Unauthorised request")
@@ -101,7 +103,6 @@ def abbreviation(input):
     for i in input.upper().split():
             code.append(i[0])
     return "".join(code)
-
 
 def create_course(workshop_data, days, user, new_user, course_name, course_code):
     """ creates course for an user """

@@ -46,7 +46,13 @@ INSTALLED_APPS = (
     'social.apps.django_app.default',
     'grades',
     'rest_framework',
-)
+    'oauth2_provider'
+    )
+OAUTH2_PROVIDER = {
+        'ACCESS_TOKEN_EXPIRE_SECONDS': 60 * 15,
+        'OAUTH_SINGLE_ACCESS_TOKEN': True,
+        'OAUTH_DELETE_EXPIRED': True
+ }
 
 MIDDLEWARE_CLASSES = (
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -73,7 +79,7 @@ DATABASES = {
             config('DB_ENGINE', default='sqlite3')
         ),
         'NAME': config('DB_NAME',
-                       default=os.path.join(BASE_DIR, 'db.sqlite3')
+                       default=os.path.join(BASE_DIR, 'db_oauth.sqlite3')
                        ),
         # The following settings are not used with sqlite3:
         'USER': config('DB_USER', default=''),
